@@ -1,0 +1,40 @@
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install jq and git
+        run: sudo apt-get update && sudo apt-get install -y jq git
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Run backup script
+        run: | 
+          bash backup.sh thespeedcubing users ${{ secrets.THESPEEDCUBING_TOKEN }}
+          bash backup.sh speedcubing-top orgs ${{ secrets.THESPEEDCUBING_TOKEN }}
+        env:
+          THESPEEDCUBING_TOKEN: ${{ secrets.THESPEEDCUBING_TOKEN }}
+
+      - name: Upload cloned repos as artifact
+        uses: actions/upload-artifact@v4
+        with:
+         name: github-backup-users
+         path: ./users
+
+      - name: Upload cloned repos as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: github-backup-orgs
+          path: ./orgs
